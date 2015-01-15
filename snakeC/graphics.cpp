@@ -62,6 +62,14 @@ void drawWisdom(int x, int y){
 	putimage(x, y, &img);
 }
 
+void drawGrass(int x, int y){
+	IMAGE img;
+	x *= 20;
+	y *= 20;
+	loadimage(&img, _T("grass.bmp"));
+	putimage(x, y, &img);
+}
+
 void drawWordText(int x, int y, TCHAR s[]){
 	LOGFONT f;
 	settextcolor(WHITE);

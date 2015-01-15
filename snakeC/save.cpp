@@ -1,38 +1,9 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<graphics.h>
-#define LEN 20
-
-extern struct snake{
-	int x;
-	int y;
-	struct snake *next;
-};
-extern struct node{
-	int x;
-	int y;
-	int preIndex;
-};
-extern int qhead, qtail;
-extern struct snake *head, *direct, *tail, *temp;
-extern int fx, fy, px[3], py[3], bx, by, wx, wy;
-extern int eFood, ePoison, eBoom, eWisdom;
-extern char MAP[LEN][LEN];
-
-void gotoxy(int x, int y);
-void drawSnakeHead(int x, int y);
-void drawSnakeBody(int x, int y);
-void drawWordText(int x, int y, TCHAR s[]);
-void drawNumber(int x, int y, int num);
-void drawLandBKG(int x, int y);
-void drawWordWindow(TCHAR s[]);
-void drawWall(int x, int y);
-void drawWordBKG(int x, int y);
-void drawFood(int x, int y);
-void drawBoom(int x, int y);
-void drawWisdom(int x, int y);
-
-
+#include"save.h"
+/*
+函数名称：存档
+函数功能：保存当前一切游戏场景、分数
+输入参数：游戏模式mode，蛇身长度length，难度hard，分数score，地图大小size，游戏速度speed
+*/
 void save(int mode, int length, int hard, int score, int size, int speed){
 	FILE* fp;
 	struct snake *p;
@@ -45,36 +16,42 @@ void save(int mode, int length, int hard, int score, int size, int speed){
 	if (ePoison){
 		for (int i = 0; i < hard; i++)
 			MAP[py[i]][px[i]] = 'p';
-	}
+	}                                            /*将存在的食物、毒草等转换成字符，保存在地图的二维数组中*/
 	if (mode == 1)
 		fp = fopen("save1", "wb");
 	else if (mode == 2)
 		fp = fopen("save2", "wb");
 	else
-		fp = fopen("save3", "wb");
+		fp = fopen("save3", "wb");               /*对不同游戏模式创建不同的存档*/
 	fwrite(&hard, sizeof(int), 1, fp);
 	fwrite(&length, sizeof(int), 1, fp);
 	fwrite(&score, sizeof(int), 1, fp);
 	fwrite(&size, sizeof(int), 1, fp);
 	fwrite(&speed, sizeof(int), 1, fp);
-	for (int i = 0; i < LEN; i++){
+	for (int i = 0; i < LEN; i++){               /*保存地图的二维数组*/
 		for (int j = 0; j < LEN; j++){
 			fwrite(*(MAP + i) + j, sizeof(char), 1, fp);
 		}
 	}
-	while (p != NULL){
+	while (p != NULL){                           /*保存链表*/
 		fwrite(p, sizeof(struct snake), 1, fp);
 		p = p->next;
 	}
 	fclose(fp);
 }
 
+/*
+函数名称：读档
+函数功能：读取存档中的信息，转换成游戏内的各种参数
+输入参数：游戏模式mode，蛇身长度指针*length，难度指针*hard，分数指针*score，地图大小指针*size，速度指针*speed
+返回值：是否成功读取存档
+*/
 int load(int mode, int *length, int *hard, int *score, int *size, int *speed){
 	FILE* fp;
 	struct snake *newnode, *p;
 	int count = 0;
 	char tmap[LEN][LEN] = { ' ' };
-	if (mode == 1)
+	if (mode == 1)                               /*读取不同模式存档*/
 		fp = fopen("save1", "rb");
 	else if (mode == 2)
 		fp = fopen("save2", "rb");
@@ -89,7 +66,7 @@ int load(int mode, int *length, int *hard, int *score, int *size, int *speed){
 		for (int i = 0; i < LEN; i++){
 			for (int j = 0; j < LEN; j++){
 				fread(*(tmap + i) + j, sizeof(char), 1, fp);
-				if (tmap[i][j] == 'f'){
+				if (tmap[i][j] == 'f'){          /*读取地图中的食物*/
 					eFood = 1;
 					fy = i;
 					fx = j;
@@ -122,7 +99,9 @@ int load(int mode, int *length, int *hard, int *score, int *size, int *speed){
 					drawLandBKG(px[count], py[count]);
 					drawFood(px[count], py[count]);
 				}
-				else if (tmap[i][j] == '#')
+				else if (tmap[i][j] == '@')
+					drawGrass(j, i);
+				else if (tmap[i][j] == '#')      /*读取障碍物*/
 					drawWall(j, i);
 				else
 					drawLandBKG(j, i);
@@ -137,7 +116,7 @@ int load(int mode, int *length, int *hard, int *score, int *size, int *speed){
 		fread(head, sizeof(struct snake), 1, fp);
 		drawSnakeHead(head->x, head->y);
 		p = head;
-		while (!feof(fp)){
+		while (!feof(fp)){                       /*读取蛇的链表*/
 			newnode = (struct snake*)malloc(sizeof(struct snake));
 			fread(newnode, sizeof(struct snake), 1, fp);
 			p->next = newnode;
@@ -146,13 +125,14 @@ int load(int mode, int *length, int *hard, int *score, int *size, int *speed){
 		p->next = NULL;
 		tail = p;
 		p = head;
-		while (p->next->next != NULL){
+		while (p->next->next != NULL){           /*删除因feof函数引起的多余节点*/
 			p = p->next;
 		}
 		p->next = NULL;
 		free(tail);
 		tail = p;
 		p = head->next;
+
 		while (p != NULL){
 			drawSnakeBody(p->x, p->y);
 			p = p->next;

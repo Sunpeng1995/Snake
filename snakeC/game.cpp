@@ -1,70 +1,17 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<time.h>
-#include<conio.h>
-#include<graphics.h>
+#include"game.h"
 
-
-#define LEFT  75
-#define RIGHT 77
-#define UP    72
-#define DOWN  80
-#define LEN 20
-
-
-struct snake{
-	int x;
-	int y;
-	struct snake *next;
-};
-struct node{
-	int x;
-	int y;
-	int preIndex;
-};
-int qhead = 0, qtail = 0;
-struct snake *head, *direct, *tail, *temp;
-int fx, fy, px[3], py[3], bx, by, wx, wy;
-int eFood, ePoison, eBoom, eWisdom;
-extern char MAP[LEN][LEN];
-
-void normalMap(int n);
-int setFood(int,int);
-int play(int,int,int, int,int);
-int control(int,int,int);
-void move(int key);
-void deltail(void);
-int boom(int);
-int flashpoison(int, int, int);
-int eatSelf(int length, int*);
-int wisdom(int size, int hard, int, int);
-void dealRank(int score);
-int poisonclock(int timing, int hard);
-int load(int mode, int *length, int *hard, int *score, int *size, int *speed);
-void save(int mode, int length, int hard, int score, int size, int speed);
-
-
-void drawSnakeHead(int x, int y);
-void drawSnakeBody(int x, int y);
-void drawWordText(int x, int y, TCHAR s[]);
-void drawNumber(int x, int y, int num);
-void drawLandBKG(int x, int y);
-void drawWordWindow(TCHAR s[]);
-void drawWall(int x, int y);
-void drawWordBKG(int x, int y);
-void drawFood(int x, int y);
-void drawBoom(int x, int y);
-void drawPoison(int x, int y);
-void drawWisdom(int x, int y);
-
-
-int play(int size, int hard, int speed, int mode, int isload){
+/*
+函数名称：游戏主函数
+函数功能：进行游戏的主体函数，对游戏中的事件进行处理
+输入参数：地图大小size，游戏难度hard，游戏速度speed，游戏模式mode，是否载入存档isload，地图编号mapnum
+*/
+int play(int size, int hard, int speed, int mode, int isload, int mapnum){
 	eFood = 0, ePoison = 0, eBoom = 0, eWisdom = 0;
 	bx = 0, by = 0, wx = 0, wy = 0;
 	for (int i = 0; i < hard; i++){
 		px[i] = 0;
 		py[i] = 0;
-	}//初始化各个食物的值
+	}                                            /*初始化所有食物坐标为0*/
 	int timing = 0;
 	int score = 0, ranksave, loadcorrect;
 	int keylast = 0;
@@ -73,8 +20,8 @@ int play(int size, int hard, int speed, int mode, int isload){
 	setbkcolor(BLACK);
 	cleardevice();
 	srand((unsigned)time(NULL));
-	if (isload == 0){
-		normalMap(size);
+	if (isload == 0){                            /*检测是否要读取存档*/
+		normalMap(size, mapnum);                 /*初始化地图*/
 		head = (struct snake*)malloc(sizeof(struct snake));
 		head->x = rand() % (size - 2) + 1;
 		head->y = rand() % (size - 2) + 1;
@@ -83,17 +30,16 @@ int play(int size, int hard, int speed, int mode, int isload){
 		drawSnakeHead(head->x, head->y);
 		setFood(size, hard);
 	}
-	else{
+	else{                                        /*载入存档*/
 		loadcorrect = load(mode, &length, &hard, &score, &size, &speed);
 		if (loadcorrect == 0){
 			return 0;
 		}
 	}
-	//TODO 2015-1-6 01:09:42
 
 	keylast = _getch();
 	while (1){
-		Sleep(speed);
+		Sleep(speed);                            /*游戏速度*/
 		drawWordText(size + 1, 1, _T("当前分数（分）："));
 		drawWordBKG(size + 1, 3);
 		drawNumber(size + 1, 3, score + length * 10);
@@ -104,6 +50,9 @@ int play(int size, int hard, int speed, int mode, int isload){
 		drawWordBKG(size + 1, 11);
 		drawNumber(size + 1, 11, speed);
 		drawWordText(size + 1, 13, _T("按空格暂停游戏"));
+		drawWordBKG(size + 1, 14);
+		drawGrass(size + 1, 14);
+		drawWordText(size + 2, 14, _T("-杂草"));
 		drawWordBKG(size + 1, 15);
 		drawFood(size + 1, 15);
 		drawWordText(size + 2, 15, _T("-食物"));
@@ -116,6 +65,7 @@ int play(int size, int hard, int speed, int mode, int isload){
 		drawWordBKG(size + 1, 18);
 		drawWisdom(size + 1, 18);
 		drawWordText(size + 2, 18, _T("-智慧草"));
+		/*游戏侧边栏，图例*/
 
 		keylast = control(keylast, length, size);
 		if (keylast == -1){
@@ -124,28 +74,32 @@ int play(int size, int hard, int speed, int mode, int isload){
 		}
 		move(keylast);
 		head = direct;
-		if (MAP[head->y][head->x] == '#')//撞墙
+		if (MAP[head->y][head->x] == '#')        /*撞墙*/
 			life = 0;
 		if (length > 4){
-			length = eatSelf(length, &score);//吃自己
+			length = eatSelf(length, &score);    /*咬断自己*/
 		}
 		drawSnakeHead(head->x, head->y);
 		showPoison = flashpoison(ePoison, showPoison, hard);
-		if (direct->x != fx || direct->y != fy)//吃食物
+		if (direct->x != fx || direct->y != fy)  /*吃食物*/
 			deltail();
 		else{
 			eFood = 0;
+			eBoom = 0;
+			drawLandBKG(bx, by);
 			length++;
 			setFood(size, hard);
 			score += 10;
+			if (mode == 3)
+				setgrass();
 		}
 		if (head->next != NULL)
 			drawSnakeBody(head->next->x, head->next->y);
-		if (direct->x == bx && direct->y == by && eBoom == 1){//吃炸弹
+		if (direct->x == bx && direct->y == by && eBoom == 1){/*吃地雷*/
 			length = boom(length);
 			score /= 2; 
 		}
-		for (int i = 0; i < hard; i++){//吃毒草
+		for (int i = 0; i < hard; i++){          /*吃毒草*/
 			if (direct->x == px[i] && direct->y == py[i] && ePoison == 1){
 				if (length == 1)
 					life = 0;
@@ -166,13 +120,13 @@ int play(int size, int hard, int speed, int mode, int isload){
 				
 			}
 		}
-		if (direct->x == wx && direct->y == wy && eWisdom==1){//吃智慧草
-			keylast = wisdom(size, hard, speed, keylast);
+		if (direct->x == wx && direct->y == wy && eWisdom == 1){/*吃智慧草*/
+			keylast = wisdom(size, hard, speed);
 			eWisdom = 0;
 			score += 50;
 		}
 
-		if (ePoison)
+		if (ePoison)                             /*重打印一遍食物*/
 			timing = poisonclock(timing, hard);
 		if (eFood)
 			drawFood(fx, fy);
@@ -180,9 +134,16 @@ int play(int size, int hard, int speed, int mode, int isload){
 			drawBoom(bx, by);
 		if (eWisdom)
 			drawWisdom(wx, wy);
-
+		if (mode == 3){
+			for (int i = 0; i < size; i++){
+				for (int j = 0; j < size; j++){
+					if (MAP[i][j] == '@')
+						drawGrass(j, i);
+				}
+			}
+		}
 		
-		if (mode == 2 && length == 3){
+		if (mode == 2 && length == 5){           /*闯关模式分支*/
 			if (hard == 3){
 				drawWordWindow(_T("恭喜你，通关了！"));
 				_getch();
@@ -191,15 +152,15 @@ int play(int size, int hard, int speed, int mode, int isload){
 			else{
 				drawWordWindow(_T("进入下一关！"));
 				_getch();
-				play(size, hard + 1, speed - 100, 2, 0);
+				play(size, hard + 1, speed - 100, 2, 0, mapnum + 1);
 				break;
 			}
 		}
-		if (mode == 3)
+		if (mode == 3)                           /*无尽模式分支*/
 			speed = 400 - (length - 1) * 5;
-		if (length == 0)
-			life = 0;
 
+		if (length == 0)                         /*死亡判定*/
+			life = 0;
 		if (life == 0)
 			break;
 	}
@@ -214,15 +175,21 @@ int play(int size, int hard, int speed, int mode, int isload){
 	return 0;
 }
 
-
+/*
+函数名称：键盘控制
+函数功能：获取键盘响应，对应不同的事件
+输入参数：上次的方向keylast，蛇长度length，地图大小size
+返回值：方向值，-1时进行存档
+*/
 int control(int keylast, int length, int size){
 	int key, keytemp, save;
 	key = keylast;
 	if (_kbhit()){
 		keytemp = _getch();
-		if (keytemp == 0xE0 || keytemp == 0)  //读取功能键
+		if (keytemp == 0xE0 || keytemp == 0)     /*读取功能键*/
 			keytemp = _getch();
-		else if (keytemp == 32){
+		else if (keytemp == 32){                 /*暂停时*/
+			drawWordBKG(size + 1, 14);
 			drawWordBKG(size + 1, 15);
 			drawWordText(size + 1, 15, _T("游戏已暂停..."));
 			drawWordBKG(size + 1, 16);
@@ -232,7 +199,10 @@ int control(int keylast, int length, int size){
 			drawWordBKG(size + 1, 18);
 			while (1){
 				save = _getch();
-				if (save == 32){
+				if (save == 32){                 /*复原时*/
+					drawWordBKG(size + 1, 14);
+					drawGrass(size + 1, 14);
+					drawWordText(size + 2, 14, _T("-杂草"));
 					drawWordBKG(size + 1, 15);
 					drawFood(size + 1, 15);
 					drawWordText(size + 2, 15, _T("-食物"));
@@ -251,13 +221,13 @@ int control(int keylast, int length, int size){
 				}
 				else if (save == 27){
 					system("cls");
-					return -1;
+					return -1;                   /*存档*/
 				}
 				else
 					continue;
 			}
 		}
-		if (length > 1){//只有一节时，转向不受限
+		if (length > 1){                         /*只有一节时，转向不受限*/
 			if (keytemp == LEFT && keylast != RIGHT)
 				key = keytemp;
 			if (keytemp == RIGHT && keylast != LEFT)
@@ -275,7 +245,11 @@ int control(int keylast, int length, int size){
 	return key;
 }
 
-
+/*
+函数名称：移动
+函数功能：添一个新的头，与deltail函数共用实现移动
+输入参数：方向key
+*/
 void move(int key){
 	direct = (struct snake*)malloc(sizeof(struct snake));
 	direct->x = head->x;
@@ -299,7 +273,10 @@ void move(int key){
 	direct->next = head;
 }
 
-
+/*
+函数名称：删除尾巴
+函数功能：删除蛇链表的尾节点，并在屏幕上擦除
+*/
 void deltail(void){
 	temp = head;
 	while (temp->next->next != NULL){
@@ -311,7 +288,12 @@ void deltail(void){
 	tail = temp;
 }
 
-
+/*
+函数名称：咬断自己
+函数功能：当蛇碰到自己的身体时，其之后的身体节点截断，变成障碍物，并扣分
+输入参数：蛇身长度length，当前分数指针变量*score
+返回值：新的蛇身长度
+*/
 int eatSelf(int length, int *score){
 	struct snake *p, *temp;
 	int count;
@@ -319,7 +301,7 @@ int eatSelf(int length, int *score){
 	temp = head->next;
 	while (p->next != NULL){
 		p = p->next;
-		if (p->x == direct->x&&p->y == direct->y){
+		if (p->x == direct->x&&p->y == direct->y){/*检测是否头节点是否碰到自己身体*/
 			while (temp->next != p)
 				temp = temp->next;
 			tail = temp;
@@ -334,7 +316,7 @@ int eatSelf(int length, int *score){
 		temp = p;
 		p = p->next;
 		free(temp);
-		while (p != NULL){
+		while (p != NULL){                       /*在屏幕上擦除，并变成障碍物*/
 			count++;
 			MAP[p->y][p->x] = '#';
 			drawWall(p->x, p->y);
